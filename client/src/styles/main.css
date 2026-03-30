@@ -225,9 +225,17 @@ html, body {
   border: 1px solid var(--color-border);
 }
 
+
 .stat-badge.alert {
   color: var(--color-danger);
   border-color: rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stat-badge.alert:hover, .stat-badge.alert:focus {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 #user-display {
