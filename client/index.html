@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>GEOINT Dashboard — Secure Maritime/Aerial Tracking</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>"
+    />
+    <link rel="stylesheet" href="./src/styles/main.css" />
+  </head>
+  <body>
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="overlay">
+      <div class="login-card">
+        <div class="login-header">
+          <h1>🛡️ GEOINT Dashboard</h1>
+          <p class="classification-banner">
+            UNCLASSIFIED // FOR DEVELOPMENT USE ONLY
+          </p>
+        </div>
+        <form id="login-form">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              autocomplete="username"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <button type="submit" id="login-btn">Authenticate</button>
+          <p id="login-error" class="error-text" hidden></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" hidden>
+      <!-- Top Bar -->
+      <header id="top-bar">
+        <div class="top-bar-left">
+          <span class="app-title">🛡️ GEOINT Dashboard</span>
+          <span class="classification-badge">UNCLASSIFIED</span>
+        </div>
+        <div class="top-bar-center">
+          <span id="connection-status" class="status-indicator disconnected">
+            <span class="status-dot"></span>
+            <span class="status-text">Disconnected</span>
+          </span>
+          <span id="asset-count" class="stat-badge">Assets: 0</span>
+          <span id="alert-count" class="stat-badge alert">Alerts: 0</span>
+        </div>
+        <div class="top-bar-right">
+          <span id="user-display"></span>
+          <button id="logout-btn" class="btn-sm">Logout</button>
+        </div>
+      </header>
+
+      <!-- Map Container -->
+      <div id="map-container">
+        <div id="map"></div>
+
+        <!-- Map Controls -->
+        <div id="map-controls">
+          <button id="btn-zoom-all" class="map-btn" title="Fit all assets">
+            📍
+          </button>
+          <button
+            id="btn-toggle-zones"
+            class="map-btn active"
+            title="Toggle geofence zones"
+          >
+            🔲
+          </button>
+          <button id="btn-toggle-tracks" class="map-btn" title="Toggle tracks">
+            〰️
+          </button>
+        </div>
+
+        <!-- Asset Type Filters -->
+        <div id="asset-filters">
+          <label class="filter-chip active" data-type="all">
+            <input type="radio" name="asset-filter" value="all" checked /> All
+          </label>
+          <label class="filter-chip" data-type="MARITIME">
+            <input type="radio" name="asset-filter" value="MARITIME" /> 🚢
+            Maritime
+          </label>
+          <label class="filter-chip" data-type="AERIAL">
+            <input type="radio" name="asset-filter" value="AERIAL" /> ✈️ Aerial
+          </label>
+          <label class="filter-chip" data-type="GROUND">
+            <input type="radio" name="asset-filter" value="GROUND" /> 🚛 Ground
+          </label>
+        </div>
+      </div>
+
+      <!-- Alert Panel (Slide-out) -->
+      <aside id="alert-panel" class="panel">
+        <div class="panel-header">
+          <h2>⚠️ Geofence Alerts</h2>
+          <button id="btn-close-alerts" class="btn-icon">✕</button>
+        </div>
+        <div id="alert-list" class="panel-body">
+          <p class="empty-state">No active alerts</p>
+        </div>
+      </aside>
+
+      <!-- Asset Detail Popup (shown via OpenLayers overlay) -->
+      <div id="asset-popup" class="popup" hidden>
+        <div class="popup-header">
+          <strong id="popup-callsign"></strong>
+          <span id="popup-type" class="badge"></span>
+        </div>
+        <div class="popup-body">
+          <div class="popup-row">
+            <span>Lat/Lon:</span> <span id="popup-coords"></span>
+          </div>
+          <div class="popup-row">
+            <span>Heading:</span> <span id="popup-heading"></span>
+          </div>
+          <div class="popup-row">
+            <span>Speed:</span> <span id="popup-speed"></span>
+          </div>
+          <div class="popup-row">
+            <span>Altitude:</span> <span id="popup-altitude"></span>
+          </div>
+          <div class="popup-row">
+            <span>Source:</span> <span id="popup-source"></span>
+          </div>
+          <div class="popup-row">
+            <span>Last Report:</span> <span id="popup-time"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Status Bar -->
+      <footer id="status-bar">
+        <span id="mouse-coords">—</span>
+        <span id="zoom-level">Zoom: —</span>
+        <span id="last-update">Last update: —</span>
+      </footer>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

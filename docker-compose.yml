@@ -1,0 +1,53 @@
+# ════════════════════════════════════════════════════════════
+# GEOINT Dashboard — Docker Compose (Development)
+# ════════════════════════════════════════════════════════════
+
+services:
+  # ── PostgreSQL + PostGIS ──────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: geoint-postgres
+    environment:
+      POSTGRES_DB: geoint_dashboard
+      POSTGRES_USER: geoint_admin
+      POSTGRES_PASSWORD: localdev123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geoint_admin -d geoint_dashboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Node.js Application Server ───────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geoint-server
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: geoint_dashboard
+      PGUSER: geoint_admin
+      PGPASSWORD: localdev123
+      PGSSL: "false"
+      JWT_SECRET: dev-only-insecure-secret-do-not-use-in-production-12345678
+      CORS_ORIGIN: http://localhost:5173
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local
