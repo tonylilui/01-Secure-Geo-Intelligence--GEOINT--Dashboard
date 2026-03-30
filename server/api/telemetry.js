@@ -10,6 +10,7 @@
 
 const { Router } = require('express');
 const db = require('../db/pool');
+const { requireRole } = require('../auth/middleware');
 const eventBus = require('../lib/eventBus');
 const wsServer = require('../ws/wsServer');
 const logger = require('../lib/logger');
@@ -19,6 +20,7 @@ const router = Router();
 /**
  * POST /api/v1/telemetry
  * Ingest a new position report from an asset.
+ * Requires ADMIN or OPERATOR role (analysts cannot inject telemetry).
  *
  * Body: {
  *   callsign: string,        // Asset callsign (lookup key)
@@ -34,7 +36,7 @@ const router = Router();
  *   raw_payload?: object
  * }
  */
-router.post('/', async (req, res) => {
+router.post('/', requireRole('ADMIN', 'OPERATOR'), async (req, res) => {
   try {
     const {
       callsign,

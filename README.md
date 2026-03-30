@@ -200,11 +200,25 @@ Open **http://localhost:5173** in your browser.
 
 Three seeded accounts are available for testing:
 
-| Username   | Password       | Role     | Permissions                                                  |
-| ---------- | -------------- | -------- | ------------------------------------------------------------ |
-| `admin`    | `admin123!`    | ADMIN    | Full access: create/edit/delete assets, zones, manage alerts |
-| `operator` | `operator123!` | OPERATOR | View assets, acknowledge/resolve alerts                      |
-| `analyst`  | `analyst123!`  | ANALYST  | View + create/edit assets, manage alerts                     |
+| Username   | Password       | Role     | Permissions                                                                   |
+| ---------- | -------------- | -------- | ----------------------------------------------------------------------------- |
+| `admin`    | `admin123!`    | ADMIN    | Full access: CRUD assets/zones, ingest telemetry, resolve/delete alerts       |
+| `operator` | `operator123!` | OPERATOR | View all data, ingest telemetry, acknowledge alerts, receive real-time alerts |
+| `analyst`  | `analyst123!`  | ANALYST  | View all data, create/edit assets, resolve alerts (cannot ingest telemetry)   |
+
+### Role Permission Matrix
+
+| Action                       | ADMIN | OPERATOR | ANALYST |
+| ---------------------------- | ----- | -------- | ------- |
+| View assets, zones, alerts   | Yes   | Yes      | Yes     |
+| Create / edit assets         | Yes   | No       | Yes     |
+| Delete (decommission) assets | Yes   | No       | No      |
+| Create / edit / delete zones | Yes   | No       | No      |
+| Ingest telemetry (POST)      | Yes   | Yes      | No      |
+| Acknowledge alerts           | Yes   | Yes      | Yes     |
+| Resolve / false-positive     | Yes   | No       | Yes     |
+| Delete resolved alerts       | Yes   | No       | No      |
+| Real-time alert channel (WS) | Yes   | Yes      | No      |
 
 ---
 
@@ -361,11 +375,11 @@ All endpoints except `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/healthz`, a
 
 ### Telemetry
 
-| Method | Endpoint                           | Auth | Body / Params                                                                 | Response                                        |
-| ------ | ---------------------------------- | ---- | ----------------------------------------------------------------------------- | ----------------------------------------------- |
-| POST   | `/api/v1/telemetry`                | JWT  | `{ assetId, latitude, longitude, altitude?, heading?, speed?, reported_at? }` | `{ position }`                                  |
-| GET    | `/api/v1/telemetry/latest`         | JWT  | —                                                                             | `[ { asset_id, latitude, longitude, ... } ]`    |
-| GET    | `/api/v1/telemetry/track/:assetId` | JWT  | `?limit=100`                                                                  | `[ { latitude, longitude, reported_at, ... } ]` |
+| Method | Endpoint                           | Auth             | Body / Params                                                                        | Response                           |
+| ------ | ---------------------------------- | ---------------- | ------------------------------------------------------------------------------------ | ---------------------------------- |
+| POST   | `/api/v1/telemetry`                | ADMIN / OPERATOR | `{ callsign, latitude, longitude, source, altitude_m?, heading_deg?, speed_knots? }` | `{ id, assetId, received_at }`     |
+| GET    | `/api/v1/telemetry/latest`         | JWT              | `?bbox=minLon,minLat,maxLon,maxLat&type=MARITIME`                                    | `{ count, positions: [...] }`      |
+| GET    | `/api/v1/telemetry/track/:assetId` | JWT              | `?from=ISO8601&to=ISO8601&limit=1000`                                                | `{ assetId, count, track: [...] }` |
 
 ### Assets
 
@@ -389,11 +403,12 @@ All endpoints except `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/healthz`, a
 
 ### Alerts
 
-| Method | Endpoint                         | Auth | Body / Params                                        | Response            |
-| ------ | -------------------------------- | ---- | ---------------------------------------------------- | ------------------- |
-| GET    | `/api/v1/alerts`                 | JWT  | `?status=ACTIVE&severity=CRITICAL&limit=50&offset=0` | `{ alerts, total }` |
-| PATCH  | `/api/v1/alerts/:id/acknowledge` | JWT  | —                                                    | `{ alert }`         |
-| PATCH  | `/api/v1/alerts/:id/resolve`     | JWT  | `{ resolution?: "FALSE_POSITIVE" }`                  | `{ alert }`         |
+| Method | Endpoint                         | Auth            | Body / Params                                        | Response                                                   |
+| ------ | -------------------------------- | --------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| GET    | `/api/v1/alerts`                 | JWT             | `?status=ACTIVE&severity=CRITICAL&limit=50&offset=0` | `{ count, total, alerts: [...] }`                          |
+| PATCH  | `/api/v1/alerts/:id/acknowledge` | JWT             | `{ notes?: string }`                                 | `{ alert }` — records `acknowledged_by` user               |
+| PATCH  | `/api/v1/alerts/:id/resolve`     | ADMIN / ANALYST | `{ resolution?: "FALSE_POSITIVE", notes?: string }`  | `{ alert }` — records `resolved_by` user                   |
+| DELETE | `/api/v1/alerts/:id`             | ADMIN           | —                                                    | `{ message, alert }` — only resolved alerts can be deleted |
 
 ### Health Checks
 
@@ -424,7 +439,17 @@ Server responds:
 { "type": "auth:success", "userId": "..." }
 ```
 
-### Subscribe to Channels
+### Channel Subscriptions (Role-Based)
+
+Channels are auto-assigned based on user role at authentication time:
+
+| Channel     | Auto-subscribed Roles   | Manual Subscribe |
+| ----------- | ----------------------- | ---------------- |
+| `positions` | ALL authenticated users | Yes              |
+| `alerts`    | ADMIN, OPERATOR only    | ADMIN, OPERATOR  |
+| `system`    | ALL authenticated users | Yes              |
+
+ANALYST users can view alerts via the REST API but do not receive real-time WebSocket push for breach events.
 
 ```json
 { "type": "subscribe", "channel": "positions" }
@@ -439,6 +464,7 @@ Server responds:
 | `positions` | `position:update`    | `{ asset_id, callsign, latitude, longitude, altitude, heading, speed, reported_at }`             |
 | `alerts`    | `geofence:breach`    | `{ id, asset_id, asset_callsign, zone_id, zone_name, severity, distance_m, status, created_at }` |
 | `alerts`    | `alert:acknowledged` | `{ alertId, acknowledgedBy }`                                                                    |
+| `alerts`    | `alert:resolved`     | `{ alertId, resolution, resolvedBy, resolvedAt }`                                                |
 | `system`    | `zone:created`       | `{ zone }`                                                                                       |
 | `system`    | `zone:updated`       | `{ zone }`                                                                                       |
 

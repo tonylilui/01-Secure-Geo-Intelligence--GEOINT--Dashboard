@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS geofence_alerts (
 
     acknowledged_by UUID REFERENCES users(id),
     acknowledged_at TIMESTAMPTZ,
+    resolved_by     UUID REFERENCES users(id),
     resolved_at     TIMESTAMPTZ,
     notes           TEXT,
 

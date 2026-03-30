@@ -1,15 +1,17 @@
 /**
  * GEOINT Dashboard — Geofence Alerts API
  *
- * GET   /api/v1/alerts              — List alerts (with filters)
- * PATCH /api/v1/alerts/:id/acknowledge — Acknowledge an alert
- * PATCH /api/v1/alerts/:id/resolve    — Resolve an alert
+ * GET    /api/v1/alerts                — List alerts (with filters)
+ * PATCH  /api/v1/alerts/:id/acknowledge — Acknowledge an alert
+ * PATCH  /api/v1/alerts/:id/resolve     — Resolve an alert
+ * DELETE /api/v1/alerts/:id             — Delete resolved alert (ADMIN)
  */
 
 'use strict';
 
 const { Router } = require('express');
 const db = require('../db/pool');
+const { requireRole } = require('../auth/middleware');
 const wsServer = require('../ws/wsServer');
 const logger = require('../lib/logger');
 
@@ -142,8 +144,9 @@ router.patch('/:id/acknowledge', async (req, res) => {
 
 /**
  * PATCH /api/v1/alerts/:id/resolve
+ * Requires ADMIN or ANALYST role.
  */
-router.patch('/:id/resolve', async (req, res) => {
+router.patch('/:id/resolve', requireRole('ADMIN', 'ANALYST'), async (req, res) => {
   try {
     if (!UUID_REGEX.test(req.params.id)) {
       return res.status(400).json({ error: 'Invalid alert ID format' });
@@ -155,11 +158,12 @@ router.patch('/:id/resolve', async (req, res) => {
     const { rows } = await db.query(`
       UPDATE geofence_alerts
       SET status = $2::alert_status,
+          resolved_by = $3,
           resolved_at = NOW(),
-          notes = COALESCE($3, notes)
+          notes = COALESCE($4, notes)
       WHERE id = $1 AND status IN ('ACTIVE', 'ACKNOWLEDGED')
-      RETURNING id, status, resolved_at
-    `, [req.params.id, resolution, req.body.notes || null]);
+      RETURNING id, status, resolved_by, resolved_at
+    `, [req.params.id, resolution, req.user.id, req.body.notes || null]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Alert not found or already resolved' });
@@ -174,12 +178,46 @@ router.patch('/:id/resolve', async (req, res) => {
       type: 'alert:resolved',
       alertId: rows[0].id,
       resolution,
+      resolvedBy: req.user.username,
       resolvedAt: rows[0].resolved_at,
     });
 
     res.json({ alert: rows[0] });
   } catch (err) {
     logger.error({ err }, 'Failed to resolve alert');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * DELETE /api/v1/alerts/:id
+ * Permanently delete a resolved/false-positive alert (history cleanup).
+ * Requires ADMIN role. Only resolved alerts can be deleted.
+ */
+router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    if (!UUID_REGEX.test(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid alert ID format' });
+    }
+
+    const { rows } = await db.query(
+      `DELETE FROM geofence_alerts WHERE id = $1 AND status IN ('RESOLVED', 'FALSE_POSITIVE') RETURNING id, asset_id, zone_id, status`,
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Alert not found or still active (only resolved alerts can be deleted)' });
+    }
+
+    await db.query(
+      'INSERT INTO audit_log (user_id, action, resource_type, resource_id, details) VALUES ($1, $2, $3, $4, $5)',
+      [req.user.id, 'DELETE_ALERT', 'alert', req.params.id, JSON.stringify({ previousStatus: rows[0].status })]
+    );
+
+    logger.info({ alertId: req.params.id, userId: req.user.id }, 'Alert deleted');
+    res.json({ message: 'Alert deleted', alert: rows[0] });
+  } catch (err) {
+    logger.error({ err }, 'Failed to delete alert');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

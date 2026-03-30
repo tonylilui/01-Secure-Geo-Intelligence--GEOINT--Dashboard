@@ -144,10 +144,15 @@ class GeointWebSocketServer {
 
         this.clients.set(ws.connectionId, ws);
 
-        // Auto-subscribe to standard channels based on role
+        // Auto-subscribe to channels based on role
         this._subscribe(ws, 'positions');
-        this._subscribe(ws, 'alerts');
         this._subscribe(ws, 'system');
+
+        // alerts channel: ADMIN and OPERATOR get real-time alerts
+        // ANALYST can view alerts via REST but doesn't receive live push
+        if (['ADMIN', 'OPERATOR'].includes(decoded.role)) {
+          this._subscribe(ws, 'alerts');
+        }
 
         this._send(ws, {
           type: 'auth:success',
@@ -175,6 +180,11 @@ class GeointWebSocketServer {
     switch (msg.type) {
       case 'subscribe':
         if (msg.channel && typeof msg.channel === 'string') {
+          // Enforce role-based channel access
+          if (msg.channel === 'alerts' && !['ADMIN', 'OPERATOR'].includes(ws.user.role)) {
+            this._send(ws, { type: 'error', message: 'Insufficient role for alerts channel' });
+            break;
+          }
           this._subscribe(ws, msg.channel);
           this._send(ws, { type: 'subscribed', channel: msg.channel });
         }
