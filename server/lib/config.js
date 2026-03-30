@@ -24,7 +24,7 @@ const config = {
   server: {
     port: parseInt(process.env.PORT, 10) || 3001,
     host: process.env.HOST || '0.0.0.0',
-    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(s => s.trim()),
   },
 
   db: {

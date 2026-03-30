@@ -1,7 +1,7 @@
 /**
  * GEOINT Dashboard — Geofence Alerts API
  *
- * GET    /api/v1/alerts                — List alerts (with filters)
+docker compose ps * GET    /api/v1/alerts                — List alerts (with filters)
  * PATCH  /api/v1/alerts/:id/acknowledge — Acknowledge an alert
  * PATCH  /api/v1/alerts/:id/resolve     — Resolve an alert
  * DELETE /api/v1/alerts/:id             — Delete resolved alert (ADMIN)
