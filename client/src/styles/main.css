@@ -559,6 +559,83 @@ html, body {
   color: var(--color-text-muted);
 }
 
+/* ── Asset Panel (Left Slide-out) ────────────────────────── */
+#asset-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 340px;
+  height: 100%;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+#asset-panel.open {
+  transform: translateX(0);
+}
+
+/* ── Asset Card ──────────────────────────────────────────── */
+.asset-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.asset-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+.asset-card-breach {
+  border-left: 3px solid var(--color-danger);
+}
+
+.asset-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.asset-card-icon {
+  font-size: 1rem;
+}
+
+.asset-card-callsign {
+  font-weight: 600;
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.asset-card-body {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 2px;
+}
+
+/* Make asset count clickable */
+#asset-count {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#asset-count:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 /* ── Scrollbar ───────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;

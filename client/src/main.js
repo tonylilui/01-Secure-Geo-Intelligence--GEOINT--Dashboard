@@ -15,6 +15,7 @@ import * as api from './api.js';
 import wsClient from './wsClient.js';
 import geointMap from './map.js';
 import alertPanel from './alertPanel.js';
+import assetPanel from './assetPanel.js';
 
 // ── DOM Elements ─────────────────────────────────────────
 
@@ -104,6 +105,9 @@ async function showApp() {
   // Initialize alert panel
   alertPanel.init();
 
+  // Initialize asset panel
+  assetPanel.init();
+
   // Load initial data
   await loadInitialData();
 
@@ -134,6 +138,7 @@ async function loadInitialData() {
 
     // Update UI counters
     updateAssetCount();
+    assetPanel.render();
 
     // Fit to show all assets
     if (positionsData.positions.length > 0) {
@@ -152,6 +157,7 @@ async function refreshPositions() {
     const data = await api.getLatestPositions();
     geointMap.loadPositions(data.positions);
     updateAssetCount();
+    assetPanel.render();
     updateLastUpdateTime();
   } catch (err) {
     console.error('[App] Failed to refresh positions:', err);
@@ -172,6 +178,7 @@ function connectWebSocket() {
     if (msg.position) {
       geointMap.updateAssetPosition(msg.position);
       updateAssetCount();
+      assetPanel.render();
       updateLastUpdateTime();
     }
   });
@@ -262,6 +269,7 @@ if (import.meta.env?.DEV) {
     ws: wsClient,
     api,
     alertPanel,
+    assetPanel,
 
     /**
      * Simulate a position update for testing.

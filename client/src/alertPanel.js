@@ -103,6 +103,11 @@ class AlertPanel {
   }
 
   open() {
+    // Close asset panel if open
+    const assetPanel = document.getElementById('asset-panel');
+    if (assetPanel && assetPanel.classList.contains('open')) {
+      assetPanel.classList.remove('open');
+    }
     this._panelEl.classList.add('open');
     this._isOpen = true;
   }
