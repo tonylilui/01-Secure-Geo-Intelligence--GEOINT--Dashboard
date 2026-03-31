@@ -11,7 +11,6 @@
 'use strict';
 
 const { WebSocketServer, WebSocket } = require('ws');
-const { verifyToken } = require('../auth/authService');
 const config = require('../lib/config');
 const logger = require('../lib/logger');
 const { v4: uuidv4 } = require('uuid');
@@ -67,21 +66,25 @@ class GeointWebSocketServer {
 
     // Extended properties on the ws object
     ws.connectionId = connectionId;
-    ws.isAuthenticated = false;
     ws.isAlive = true;
-    ws.user = null;
     ws.subscribedChannels = new Set();
     ws.ip = ip;
 
-    logger.debug({ connectionId, ip }, 'New WebSocket connection (pending auth)');
+    logger.debug({ connectionId, ip }, 'New WebSocket connection');
 
-    // Set auth timeout — client must authenticate within 10 seconds
-    ws.authTimeout = setTimeout(() => {
-      if (!ws.isAuthenticated) {
-        logger.warn({ connectionId }, 'WebSocket auth timeout');
-        ws.close(4001, 'Authentication timeout');
-      }
-    }, 10_000);
+    // Auto-subscribe to all channels
+    this.clients.set(ws.connectionId, ws);
+    this._subscribe(ws, 'positions');
+    this._subscribe(ws, 'system');
+    this._subscribe(ws, 'alerts');
+
+    this._send(ws, {
+      type: 'connected',
+      connectionId: ws.connectionId,
+      subscribedChannels: Array.from(ws.subscribedChannels),
+    });
+
+    logger.info({ connectionId: ws.connectionId }, 'WebSocket connected');
 
     ws.on('pong', () => {
       ws.isAlive = true;
@@ -103,7 +106,6 @@ class GeointWebSocketServer {
 
   /**
    * Handle incoming WebSocket message.
-   * First message must be auth; subsequent are commands.
    * @param {WebSocket} ws
    * @param {Buffer} data
    */
@@ -122,69 +124,10 @@ class GeointWebSocketServer {
       return;
     }
 
-    // ── Authentication ──────────────────────────────────
-    if (!ws.isAuthenticated) {
-      if (msg.type !== 'auth' || !msg.token) {
-        this._send(ws, { type: 'error', message: 'First message must be: { type: "auth", token: "<JWT>" }' });
-        return;
-      }
-
-      try {
-        const decoded = verifyToken(msg.token);
-
-        if (decoded.type === 'refresh') {
-          this._send(ws, { type: 'error', message: 'Refresh tokens not accepted' });
-          ws.close(4003, 'Invalid token type');
-          return;
-        }
-
-        ws.isAuthenticated = true;
-        ws.user = { id: decoded.sub, username: decoded.username, role: decoded.role };
-        clearTimeout(ws.authTimeout);
-
-        this.clients.set(ws.connectionId, ws);
-
-        // Auto-subscribe to channels based on role
-        this._subscribe(ws, 'positions');
-        this._subscribe(ws, 'system');
-
-        // alerts channel: ADMIN and OPERATOR get real-time alerts
-        // ANALYST can view alerts via REST but doesn't receive live push
-        if (['ADMIN', 'OPERATOR'].includes(decoded.role)) {
-          this._subscribe(ws, 'alerts');
-        }
-
-        this._send(ws, {
-          type: 'auth:success',
-          connectionId: ws.connectionId,
-          user: ws.user,
-          subscribedChannels: Array.from(ws.subscribedChannels),
-        });
-
-        logger.info({
-          connectionId: ws.connectionId,
-          username: ws.user.username,
-          role: ws.user.role,
-        }, 'WebSocket authenticated');
-
-        return;
-      } catch (err) {
-        logger.warn({ connectionId: ws.connectionId, err: err.message }, 'WebSocket auth failed');
-        this._send(ws, { type: 'auth:error', message: 'Invalid token' });
-        ws.close(4002, 'Authentication failed');
-        return;
-      }
-    }
-
-    // ── Authenticated Commands ──────────────────────────
+    // ── Commands ────────────────────────────────────────
     switch (msg.type) {
       case 'subscribe':
         if (msg.channel && typeof msg.channel === 'string') {
-          // Enforce role-based channel access
-          if (msg.channel === 'alerts' && !['ADMIN', 'OPERATOR'].includes(ws.user.role)) {
-            this._send(ws, { type: 'error', message: 'Insufficient role for alerts channel' });
-            break;
-          }
           this._subscribe(ws, msg.channel);
           this._send(ws, { type: 'subscribed', channel: msg.channel });
         }
@@ -213,8 +156,6 @@ class GeointWebSocketServer {
    * @param {Buffer} reason
    */
   _handleDisconnect(ws, code, reason) {
-    clearTimeout(ws.authTimeout);
-
     // Remove from all channels
     for (const channel of ws.subscribedChannels) {
       const members = this.channels.get(channel);
@@ -227,7 +168,6 @@ class GeointWebSocketServer {
 
     logger.debug({
       connectionId: ws.connectionId,
-      username: ws.user?.username,
       code,
     }, 'WebSocket disconnected');
   }

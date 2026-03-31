@@ -1,77 +1,22 @@
 /**
  * GEOINT Dashboard — API Client
  *
- * Handles all REST API communication with automatic JWT token management.
- * Implements token refresh on 401 responses.
+ * Handles all REST API communication.
  */
 
 const API_BASE = '/api/v1';
 
-let accessToken = null;
-let refreshToken = null;
-let onAuthFailure = null;
-
 /**
- * Set auth tokens.
- * @param {{ accessToken: string, refreshToken: string }} tokens
+ * Make an API request.
  */
-export function setTokens(tokens) {
-  accessToken = tokens.accessToken;
-  refreshToken = tokens.refreshToken;
-}
-
-/**
- * Get the current access token (used by WebSocket auth).
- * @returns {string|null}
- */
-export function getAccessToken() {
-  return accessToken;
-}
-
-/**
- * Set callback for auth failures (triggers re-login).
- * @param {Function} callback
- */
-export function setAuthFailureCallback(callback) {
-  onAuthFailure = callback;
-}
-
-/**
- * Clear tokens on logout.
- */
-export function clearTokens() {
-  accessToken = null;
-  refreshToken = null;
-}
-
-/**
- * Make an authenticated API request.
- * Automatically retries with refreshed token on 401.
- */
-async function request(method, path, body = null, retry = true) {
+async function request(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' };
-
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
   const opts = { method, headers };
   if (body) {
     opts.body = JSON.stringify(body);
   }
 
   const res = await fetch(`${API_BASE}${path}`, opts);
-
-  // Attempt token refresh on 401
-  if (res.status === 401 && retry && refreshToken) {
-    const refreshed = await attemptRefresh();
-    if (refreshed) {
-      return request(method, path, body, false);
-    }
-    if (onAuthFailure) onAuthFailure();
-    throw new Error('Authentication expired');
-  }
-
   const data = await res.json();
 
   if (!res.ok) {
@@ -83,46 +28,7 @@ async function request(method, path, body = null, retry = true) {
   return data;
 }
 
-/**
- * Attempt to refresh the access token.
- */
-async function attemptRefresh() {
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!res.ok) return false;
-
-    const data = await res.json();
-    accessToken = data.accessToken;
-    refreshToken = data.refreshToken;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // ── Public API Methods ────────────────────────────────────
-
-export async function login(username, password) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.error || 'Login failed');
-  }
-
-  setTokens(data);
-  return data;
-}
 
 export function getLatestPositions(params = {}) {
   const qs = new URLSearchParams(params).toString();

@@ -2,20 +2,16 @@
  * GEOINT Dashboard — WebSocket Client
  *
  * Manages the real-time WebSocket connection:
- * - JWT authentication on connect
  * - Automatic reconnection with exponential backoff
  * - Channel subscription management
  * - Event dispatching to registered handlers
  */
-
-import { getAccessToken } from './api.js';
 
 class WebSocketClient {
   constructor() {
     /** @type {WebSocket|null} */
     this.ws = null;
     this.isConnected = false;
-    this.isAuthenticated = false;
     this.connectionId = null;
 
     // Reconnection
@@ -57,15 +53,9 @@ class WebSocketClient {
 
     this.ws.onopen = () => {
       this._reconnectAttempts = 0;
-
-      // Send JWT authentication
-      const token = getAccessToken();
-      if (token) {
-        this.ws.send(JSON.stringify({ type: 'auth', token }));
-      } else {
-        console.error('[WS] No access token available for auth');
-        this.ws.close();
-      }
+      this.isConnected = true;
+      this._setStatus('connected');
+      console.log('[WS] Connected');
     };
 
     this.ws.onmessage = (event) => {
@@ -74,11 +64,10 @@ class WebSocketClient {
 
     this.ws.onclose = (event) => {
       this.isConnected = false;
-      this.isAuthenticated = false;
       this.connectionId = null;
       this._setStatus('disconnected');
 
-      if (!this._intentionalClose && event.code !== 4002 && event.code !== 4003) {
+      if (!this._intentionalClose) {
         this._scheduleReconnect();
       }
     };
@@ -101,7 +90,6 @@ class WebSocketClient {
     }
 
     this.isConnected = false;
-    this.isAuthenticated = false;
     this._setStatus('disconnected');
   }
 
@@ -150,18 +138,10 @@ class WebSocketClient {
       return;
     }
 
-    // Handle auth response
-    if (msg.type === 'auth:success') {
-      this.isConnected = true;
-      this.isAuthenticated = true;
+    // Handle connection confirmation
+    if (msg.type === 'connected') {
       this.connectionId = msg.connectionId;
-      this._setStatus('connected');
-      console.log(`[WS] Authenticated as ${msg.user.username} (${msg.connectionId})`);
-    }
-
-    if (msg.type === 'auth:error') {
-      console.error('[WS] Auth failed:', msg.message);
-      return;
+      console.log(`[WS] Connection ID: ${msg.connectionId}`);
     }
 
     // Dispatch to registered handlers

@@ -2,10 +2,9 @@
  * GEOINT Dashboard — Main Application Entry Point
  *
  * Orchestrates:
- * 1. Login flow
- * 2. Map initialization and initial data load
- * 3. WebSocket connection and real-time event handling
- * 4. UI control bindings
+ * 1. Map initialization and initial data load
+ * 2. WebSocket connection and real-time event handling
+ * 3. UI control bindings
  */
 
 import 'ol/ol.css';
@@ -19,17 +18,9 @@ import assetPanel from './assetPanel.js';
 
 // ── DOM Elements ─────────────────────────────────────────
 
-const loginOverlay = document.getElementById('login-overlay');
-const loginForm = document.getElementById('login-form');
-const loginError = document.getElementById('login-error');
-const loginBtn = document.getElementById('login-btn');
-
-const appEl = document.getElementById('app');
 const connectionStatus = document.getElementById('connection-status');
 const statusText = connectionStatus.querySelector('.status-text');
 const assetCountEl = document.getElementById('asset-count');
-const userDisplay = document.getElementById('user-display');
-const logoutBtn = document.getElementById('logout-btn');
 const lastUpdateEl = document.getElementById('last-update');
 
 // Map control buttons
@@ -42,63 +33,11 @@ const filterChips = document.querySelectorAll('.filter-chip');
 
 // ── State ────────────────────────────────────────────────
 
-let currentUser = null;
 let refreshInterval = null;
 
-// ── Login Flow ───────────────────────────────────────────
+// ── App Initialization ───────────────────────────────────
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginError.hidden = true;
-  loginBtn.disabled = true;
-  loginBtn.textContent = 'Authenticating...';
-
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-
-  try {
-    const result = await api.login(username, password);
-    currentUser = result.user;
-    showApp();
-  } catch (err) {
-    loginError.textContent = err.message;
-    loginError.hidden = false;
-  } finally {
-    loginBtn.disabled = false;
-    loginBtn.textContent = 'Authenticate';
-  }
-});
-
-// Handle auth failure (token expired, etc.)
-api.setAuthFailureCallback(() => {
-  showLogin();
-});
-
-// ── Logout ───────────────────────────────────────────────
-
-logoutBtn.addEventListener('click', () => {
-  api.clearTokens();
-  wsClient.disconnect();
-  currentUser = null;
-  clearInterval(refreshInterval);
-  showLogin();
-});
-
-// ── Show/Hide ────────────────────────────────────────────
-
-function showLogin() {
-  loginOverlay.hidden = false;
-  appEl.hidden = true;
-  loginForm.reset();
-  loginError.hidden = true;
-}
-
-async function showApp() {
-  loginOverlay.hidden = true;
-  appEl.hidden = false;
-
-  userDisplay.textContent = `${currentUser.displayName || currentUser.username} (${currentUser.role})`;
-
+async function initApp() {
   // Initialize map
   geointMap.init('map');
 
@@ -117,6 +56,9 @@ async function showApp() {
   // Periodic materialized view refresh (every 30s)
   refreshInterval = setInterval(refreshPositions, 30_000);
 }
+
+// Start the app immediately
+initApp();
 
 // ── Initial Data Load ────────────────────────────────────
 

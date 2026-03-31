@@ -31,7 +31,6 @@ const geofenceWorker = require('./workers/geofenceWorker');
 
 // Routes
 const authRoutes = require('./auth/routes');
-const { requireAuth } = require('./auth/middleware');
 const telemetryRoutes = require('./api/telemetry');
 const assetRoutes = require('./api/assets');
 const zoneRoutes = require('./api/zones');
@@ -81,6 +80,13 @@ const apiLimiter = rateLimit({
 
 app.use('/api/', apiLimiter);
 
+// ── Default User (no auth) ───────────────────────────────
+
+app.use((req, res, next) => {
+  req.user = { id: '00000000-0000-0000-0000-000000000000', username: 'guest', role: 'ADMIN' };
+  next();
+});
+
 // ── Request Logging ──────────────────────────────────────
 
 app.use((req, res, next) => {
@@ -101,12 +107,10 @@ app.use((req, res, next) => {
 
 // Public routes
 app.use('/api/v1/auth', authRoutes);
-
-// Protected routes (require JWT)
-app.use('/api/v1/telemetry', requireAuth, telemetryRoutes);
-app.use('/api/v1/assets', requireAuth, assetRoutes);
-app.use('/api/v1/zones', requireAuth, zoneRoutes);
-app.use('/api/v1/alerts', requireAuth, alertRoutes);
+app.use('/api/v1/telemetry', telemetryRoutes);
+app.use('/api/v1/assets', assetRoutes);
+app.use('/api/v1/zones', zoneRoutes);
+app.use('/api/v1/alerts', alertRoutes);
 
 // ── Health Check ─────────────────────────────────────────
 
