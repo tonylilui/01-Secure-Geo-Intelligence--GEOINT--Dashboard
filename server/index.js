@@ -180,12 +180,15 @@ async function runMigrations() {
   const schemaPath = path.join(__dirname, 'db', 'schema.sql');
   const sql = fs.readFileSync(schemaPath, 'utf-8');
   logger.info('Running database migrations...');
+  const client = await db.getClient();
   try {
-    await db.query(sql);
+    await client.query(sql);
     logger.info('Database migrations completed');
   } catch (err) {
     logger.error({ err }, 'Database migration failed');
     throw err;
+  } finally {
+    client.release();
   }
 }
 
