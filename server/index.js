@@ -15,6 +15,8 @@
 require('dotenv').config();
 
 const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -140,9 +142,20 @@ app.get('/readyz', async (req, res) => {
   }
 });
 
+// ── Static Files (production) ────────────────────────────
+
+const distPath = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
+
 // ── 404 Handler ──────────────────────────────────────────
 
 app.use((req, res) => {
+  // In production, serve index.html for non-API routes (SPA fallback)
+  if (!req.path.startsWith('/api/') && fs.existsSync(distPath)) {
+    return res.sendFile(path.join(distPath, 'index.html'));
+  }
   res.status(404).json({ error: 'Not found' });
 });
 
@@ -161,17 +174,37 @@ const server = http.createServer(app);
 
 wsServer.attach(server);
 
+// ── Auto-migrate on startup ──────────────────────────────
+
+async function runMigrations() {
+  const schemaPath = path.join(__dirname, 'db', 'schema.sql');
+  const sql = fs.readFileSync(schemaPath, 'utf-8');
+  logger.info('Running database migrations...');
+  try {
+    await db.query(sql);
+    logger.info('Database migrations completed');
+  } catch (err) {
+    logger.error({ err }, 'Database migration failed');
+    throw err;
+  }
+}
+
 // ── Start ────────────────────────────────────────────────
 
-server.listen(config.server.port, config.server.host, () => {
-  logger.info({
-    port: config.server.port,
-    host: config.server.host,
-    env: config.env,
-  }, 'GEOINT Dashboard server started');
+runMigrations().then(() => {
+  server.listen(config.server.port, config.server.host, () => {
+    logger.info({
+      port: config.server.port,
+      host: config.server.host,
+      env: config.env,
+    }, 'GEOINT Dashboard server started');
 
-  // Start the geofence worker
-  geofenceWorker.start();
+    // Start the geofence worker
+    geofenceWorker.start();
+  });
+}).catch((err) => {
+  logger.error({ err }, 'Failed to start server');
+  process.exit(1);
 });
 
 // ── Graceful Shutdown ────────────────────────────────────
