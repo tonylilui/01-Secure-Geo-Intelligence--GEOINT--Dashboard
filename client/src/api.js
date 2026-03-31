@@ -66,3 +66,7 @@ export function resolveAlert(alertId, resolution = 'RESOLVED', notes = null) {
 export function ingestTelemetry(telemetry) {
   return request('POST', '/telemetry', telemetry);
 }
+
+export function createAsset(asset) {
+  return request('POST', '/assets', asset);
+}

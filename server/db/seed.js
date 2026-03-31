@@ -55,10 +55,18 @@ async function seed() {
 
     logger.info({ count: assets.length }, 'Seeded assets');
 
-    // Build asset lookup
+    // Build asset lookup (include existing assets if ON CONFLICT skipped inserts)
     const assetMap = {};
     for (const a of assets) {
       assetMap[a.callsign] = a.id;
+    }
+
+    // Fetch any existing assets not returned by the INSERT
+    const { rows: existingAssets } = await client.query('SELECT id, callsign FROM assets');
+    for (const a of existingAssets) {
+      if (!assetMap[a.callsign]) {
+        assetMap[a.callsign] = a.id;
+      }
     }
 
     // ── Geofence Zones ───────────────────────────────────
@@ -156,6 +164,33 @@ async function seed() {
         VALUES
           ($1, ST_GeogFromText('SRID=4326;POINT(-63.575 44.64)'), -63.575, 44.64, 270.0, 5.0, 'AIS', NOW())
       `, [assetMap['UNKNOWN-VESSEL']]);
+    }
+
+    if (assetMap['CCGS-AMUNDSEN']) {
+      await client.query(`
+        INSERT INTO asset_positions (asset_id, location, longitude, latitude, heading_deg, speed_knots, source, reported_at)
+        VALUES
+          ($1, ST_GeogFromText('SRID=4326;POINT(-90.0 73.5)'), -90.0, 73.5, 0.0, 6.0, 'AIS', NOW() - INTERVAL '4 minutes'),
+          ($1, ST_GeogFromText('SRID=4326;POINT(-89.8 73.6)'), -89.8, 73.6, 15.0, 6.5, 'AIS', NOW())
+      `, [assetMap['CCGS-AMUNDSEN']]);
+    }
+
+    if (assetMap['CH148-CYCLONE']) {
+      await client.query(`
+        INSERT INTO asset_positions (asset_id, location, longitude, latitude, altitude_m, heading_deg, speed_knots, source, reported_at)
+        VALUES
+          ($1, ST_GeogFromText('SRID=4326;POINT(-63.52 44.66)'), -63.52, 44.66, 610.0, 120.0, 140.0, 'ADSB', NOW() - INTERVAL '1 minute'),
+          ($1, ST_GeogFromText('SRID=4326;POINT(-63.48 44.65)'), -63.48, 44.65, 600.0, 125.0, 145.0, 'ADSB', NOW())
+      `, [assetMap['CH148-CYCLONE']]);
+    }
+
+    if (assetMap['LAV6-ALPHA']) {
+      await client.query(`
+        INSERT INTO asset_positions (asset_id, location, longitude, latitude, heading_deg, speed_knots, source, reported_at)
+        VALUES
+          ($1, ST_GeogFromText('SRID=4326;POINT(-75.69 45.42)'), -75.69, 45.42, 90.0, 15.0, 'GPS', NOW() - INTERVAL '3 minutes'),
+          ($1, ST_GeogFromText('SRID=4326;POINT(-75.67 45.42)'), -75.67, 45.42, 88.0, 18.0, 'GPS', NOW())
+      `, [assetMap['LAV6-ALPHA']]);
     }
 
     // Refresh materialized view

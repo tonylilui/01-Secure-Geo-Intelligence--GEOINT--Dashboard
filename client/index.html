@@ -29,7 +29,10 @@
           <span id="asset-count" class="stat-badge">Assets: 0</span>
           <span id="alert-count" class="stat-badge alert">Alerts: 0</span>
         </div>
-        <div class="top-bar-right"></div>
+        <div class="top-bar-right">
+          <button id="btn-add-asset" class="btn-sm">+ Asset</button>
+          <button id="btn-add-position" class="btn-sm">+ Position</button>
+        </div>
       </header>
 
       <!-- Map Container -->
@@ -127,6 +130,166 @@
         <span id="zoom-level">Zoom: —</span>
         <span id="last-update">Last update: —</span>
       </footer>
+
+      <!-- Add Asset Modal -->
+      <div id="modal-add-asset" class="modal-overlay" hidden>
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Add New Asset</h3>
+            <button class="btn-icon modal-close">✕</button>
+          </div>
+          <form id="form-add-asset">
+            <div class="form-group">
+              <label for="new-callsign">Callsign</label>
+              <input
+                type="text"
+                id="new-callsign"
+                maxlength="32"
+                required
+                placeholder="e.g. HMCS-VICTORIA"
+              />
+            </div>
+            <div class="form-group">
+              <label for="new-asset-type">Type</label>
+              <select id="new-asset-type" required>
+                <option value="MARITIME">🚢 Maritime</option>
+                <option value="AERIAL">✈️ Aerial</option>
+                <option value="GROUND">🚛 Ground</option>
+                <option value="SUBSURFACE">🔵 Subsurface</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-asset-lon">Longitude</label>
+                <input
+                  type="number"
+                  id="new-asset-lon"
+                  step="any"
+                  min="-180"
+                  max="180"
+                  required
+                  placeholder="-63.57"
+                />
+              </div>
+              <div class="form-group">
+                <label for="new-asset-lat">Latitude</label>
+                <input
+                  type="number"
+                  id="new-asset-lat"
+                  step="any"
+                  min="-90"
+                  max="90"
+                  required
+                  placeholder="44.64"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-asset-heading">Heading (°)</label>
+                <input
+                  type="number"
+                  id="new-asset-heading"
+                  step="any"
+                  min="0"
+                  max="360"
+                  value="0"
+                />
+              </div>
+              <div class="form-group">
+                <label for="new-asset-speed">Speed (kts)</label>
+                <input
+                  type="number"
+                  id="new-asset-speed"
+                  step="any"
+                  min="0"
+                  value="0"
+                />
+              </div>
+            </div>
+            <p id="add-asset-error" class="error-text" hidden></p>
+            <button type="submit" class="btn-primary">Create Asset</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Add Position / Report Position Modal -->
+      <div id="modal-add-position" class="modal-overlay" hidden>
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Report Position</h3>
+            <button class="btn-icon modal-close">✕</button>
+          </div>
+          <form id="form-add-position">
+            <div class="form-group">
+              <label for="pos-callsign">Asset Callsign</label>
+              <select id="pos-callsign" required>
+                <option value="">— Select asset —</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pos-lon">Longitude</label>
+                <input
+                  type="number"
+                  id="pos-lon"
+                  step="any"
+                  min="-180"
+                  max="180"
+                  required
+                  placeholder="-63.57"
+                />
+              </div>
+              <div class="form-group">
+                <label for="pos-lat">Latitude</label>
+                <input
+                  type="number"
+                  id="pos-lat"
+                  step="any"
+                  min="-90"
+                  max="90"
+                  required
+                  placeholder="44.64"
+                />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pos-heading">Heading (°)</label>
+                <input
+                  type="number"
+                  id="pos-heading"
+                  step="any"
+                  min="0"
+                  max="360"
+                  value="0"
+                />
+              </div>
+              <div class="form-group">
+                <label for="pos-speed">Speed (kts)</label>
+                <input
+                  type="number"
+                  id="pos-speed"
+                  step="any"
+                  min="0"
+                  value="10"
+                />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="pos-source">Source</label>
+              <select id="pos-source">
+                <option value="AIS">AIS</option>
+                <option value="ADSB">ADS-B</option>
+                <option value="GPS">GPS</option>
+                <option value="MANUAL" selected>Manual</option>
+              </select>
+            </div>
+            <p id="add-position-error" class="error-text" hidden></p>
+            <button type="submit" class="btn-primary">Submit Position</button>
+          </form>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./src/main.js"></script>

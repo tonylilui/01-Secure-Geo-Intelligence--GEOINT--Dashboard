@@ -203,6 +203,123 @@ function updateLastUpdateTime() {
   lastUpdateEl.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
 }
 
+// ── Modal: Add Asset ─────────────────────────────────────
+
+const modalAddAsset = document.getElementById('modal-add-asset');
+const formAddAsset = document.getElementById('form-add-asset');
+const addAssetError = document.getElementById('add-asset-error');
+
+document.getElementById('btn-add-asset').addEventListener('click', () => {
+  modalAddAsset.hidden = false;
+  addAssetError.hidden = true;
+});
+
+formAddAsset.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  addAssetError.hidden = true;
+
+  const callsign = document.getElementById('new-callsign').value.trim().toUpperCase();
+  const asset_type = document.getElementById('new-asset-type').value;
+  const lon = parseFloat(document.getElementById('new-asset-lon').value);
+  const lat = parseFloat(document.getElementById('new-asset-lat').value);
+  const heading = parseFloat(document.getElementById('new-asset-heading').value) || 0;
+  const speed = parseFloat(document.getElementById('new-asset-speed').value) || 0;
+
+  try {
+    // Create asset
+    await api.createAsset({ callsign, asset_type });
+
+    // Immediately ingest a position for it
+    await api.ingestTelemetry({
+      callsign,
+      longitude: lon,
+      latitude: lat,
+      heading_deg: heading,
+      speed_knots: speed,
+      source: 'MANUAL',
+    });
+
+    // Refresh map
+    await refreshPositions();
+    modalAddAsset.hidden = true;
+    formAddAsset.reset();
+  } catch (err) {
+    addAssetError.textContent = err.message;
+    addAssetError.hidden = false;
+  }
+});
+
+// ── Modal: Report Position ───────────────────────────────
+
+const modalAddPosition = document.getElementById('modal-add-position');
+const formAddPosition = document.getElementById('form-add-position');
+const addPositionError = document.getElementById('add-position-error');
+const posCallsignSelect = document.getElementById('pos-callsign');
+
+document.getElementById('btn-add-position').addEventListener('click', async () => {
+  addPositionError.hidden = true;
+
+  // Populate dropdown with current assets
+  try {
+    const data = await api.getAssets();
+    posCallsignSelect.innerHTML = '<option value="">— Select asset —</option>';
+    for (const asset of data.assets) {
+      const opt = document.createElement('option');
+      opt.value = asset.callsign;
+      opt.textContent = `${asset.callsign} (${asset.asset_type})`;
+      posCallsignSelect.appendChild(opt);
+    }
+  } catch (err) {
+    console.error('[App] Failed to load assets for dropdown', err);
+  }
+
+  modalAddPosition.hidden = false;
+});
+
+formAddPosition.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  addPositionError.hidden = true;
+
+  const callsign = document.getElementById('pos-callsign').value;
+  const lon = parseFloat(document.getElementById('pos-lon').value);
+  const lat = parseFloat(document.getElementById('pos-lat').value);
+  const heading = parseFloat(document.getElementById('pos-heading').value) || 0;
+  const speed = parseFloat(document.getElementById('pos-speed').value) || 0;
+  const source = document.getElementById('pos-source').value;
+
+  try {
+    await api.ingestTelemetry({
+      callsign,
+      longitude: lon,
+      latitude: lat,
+      heading_deg: heading,
+      speed_knots: speed,
+      source,
+    });
+
+    await refreshPositions();
+    modalAddPosition.hidden = true;
+    formAddPosition.reset();
+  } catch (err) {
+    addPositionError.textContent = err.message;
+    addPositionError.hidden = false;
+  }
+});
+
+// ── Modal: Close buttons ─────────────────────────────────
+
+document.querySelectorAll('.modal-close').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    btn.closest('.modal-overlay').hidden = true;
+  });
+});
+
+document.querySelectorAll('.modal-overlay').forEach((overlay) => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.hidden = true;
+  });
+});
+
 // ── Telemetry Simulator (Development Only) ───────────────
 
 if (import.meta.env?.DEV) {
