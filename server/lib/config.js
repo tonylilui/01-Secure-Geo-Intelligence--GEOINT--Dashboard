@@ -17,6 +17,9 @@ function requireEnv(key) {
   return val;
 }
 
+// Support Railway's DATABASE_URL or individual PG* variables
+const hasDatabaseUrl = !!process.env.DATABASE_URL;
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   isDev: (process.env.NODE_ENV || 'development') === 'development',
@@ -27,16 +30,23 @@ const config = {
     corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(s => s.trim()),
   },
 
-  db: {
-    host: requireEnv('PGHOST'),
-    port: parseInt(process.env.PGPORT, 10) || 5432,
-    database: requireEnv('PGDATABASE'),
-    user: requireEnv('PGUSER'),
-    password: requireEnv('PGPASSWORD'),
-    ssl: process.env.PGSSL === 'true',
-    poolMin: parseInt(process.env.PG_POOL_MIN, 10) || 2,
-    poolMax: parseInt(process.env.PG_POOL_MAX, 10) || 20,
-  },
+  db: hasDatabaseUrl
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
+        poolMin: parseInt(process.env.PG_POOL_MIN, 10) || 2,
+        poolMax: parseInt(process.env.PG_POOL_MAX, 10) || 20,
+      }
+    : {
+        host: requireEnv('PGHOST'),
+        port: parseInt(process.env.PGPORT, 10) || 5432,
+        database: requireEnv('PGDATABASE'),
+        user: requireEnv('PGUSER'),
+        password: requireEnv('PGPASSWORD'),
+        ssl: process.env.PGSSL === 'true',
+        poolMin: parseInt(process.env.PG_POOL_MIN, 10) || 2,
+        poolMax: parseInt(process.env.PG_POOL_MAX, 10) || 20,
+      },
 
   jwt: {
     secret: requireEnv('JWT_SECRET'),

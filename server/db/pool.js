@@ -10,21 +10,32 @@
 const { Pool } = require('pg');
 const logger = require('../lib/logger');
 
-const pool = new Pool({
-  host: process.env.PGHOST,
-  port: parseInt(process.env.PGPORT, 10) || 5432,
-  database: process.env.PGDATABASE,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  min: parseInt(process.env.PG_POOL_MIN, 10) || 2,
-  max: parseInt(process.env.PG_POOL_MAX, 10) || 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-  ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: true } : false,
+// Support Railway's DATABASE_URL or individual PG* variables
+const poolConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
+      min: parseInt(process.env.PG_POOL_MIN, 10) || 2,
+      max: parseInt(process.env.PG_POOL_MAX, 10) || 20,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+      statement_timeout: 30_000,
+    }
+  : {
+      host: process.env.PGHOST,
+      port: parseInt(process.env.PGPORT, 10) || 5432,
+      database: process.env.PGDATABASE,
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD,
+      min: parseInt(process.env.PG_POOL_MIN, 10) || 2,
+      max: parseInt(process.env.PG_POOL_MAX, 10) || 20,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+      ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: true } : false,
+      statement_timeout: 30_000,
+    };
 
-  // Enforce statement timeout to prevent runaway queries
-  statement_timeout: 30_000,
-});
+const pool = new Pool(poolConfig);
 
 pool.on('error', (err) => {
   logger.error({ err }, 'Unexpected PostgreSQL pool error');
