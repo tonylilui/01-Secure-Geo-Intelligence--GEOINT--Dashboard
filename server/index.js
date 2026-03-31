@@ -40,6 +40,9 @@ const alertRoutes = require('./api/alerts');
 
 const app = express();
 
+// Trust Railway's reverse proxy
+app.set('trust proxy', 1);
+
 // ── Security Middleware ──────────────────────────────────
 
 app.use(helmet({
@@ -48,7 +51,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org'],
       connectSrc: ["'self'", 'ws:', 'wss:'],
     },
   },
